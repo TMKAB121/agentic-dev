@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Service Status</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>Service Status</h1>
+  </header>
+  <main>
+    <section id="status-card" class="card" role="status" aria-live="polite">
+      <p id="status-badge" class="badge badge--loading">Checking…</p>
+      <dl class="status-details">
+        <div class="status-row">
+          <dt>Uptime</dt>
+          <dd id="status-uptime">—</dd>
+        </div>
+        <div class="status-row">
+          <dt>Last checked</dt>
+          <dd id="status-checked">—</dd>
+        </div>
+      </dl>
+      <p id="status-message" class="muted"></p>
+      <button id="refresh-button" type="button" disabled>Refresh</button>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
