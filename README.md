@@ -84,13 +84,54 @@ app/public/               vanilla HTML/CSS/JS frontend
 app/test/                 node --test suite
 ```
 
-## Adapting this template
+## Using this process in another codebase
 
-- **Change the stack**: edit the *Tech stack* section of `CLAUDE.md`. Agent
-  prompts are stack-agnostic — they follow whatever is declared there.
-- **Harden lane boundaries**: tool access is already restricted per agent via
-  frontmatter; path-level rules (e.g. "UX writes only under docs/") are
-  prompt-level discipline here, upgradeable with hooks or permission deny rules.
+The process is plain markdown — nothing to install, no runtime, no cloning
+required beyond grabbing the files once. To adopt it in any repo where you
+use Claude Code:
+
+1. **Copy verbatim** (fully stack-agnostic):
+   - `.claude/agents/` — the four role agents
+   - `.claude/commands/` — `/feature`, `/design-review`, `/qa-verify`
+   - `docs/qa/TEMPLATE-defect.md`
+2. **Copy, then edit for the target project**:
+   - `CLAUDE.md` — rewrite the **Tech stack** section (agents build with
+     whatever it declares: React, Vue, Python, anything) and the **Commands**
+     section (how to run and test that project). Keep the Roles, Workflow
+     rules, and Artifact conventions sections as-is.
+   - `docs/design-system.md` — swap the placeholder tokens for the target
+     product's brand values.
+3. **Create the artifact directories**: `docs/specs/`, `docs/qa/test-plans/`,
+   `docs/qa/defects/`, `docs/design-reviews/`.
+4. **Optional but recommended**: copy the three seeded `001-status-dashboard`
+   artifacts (spec, test plan, design review) as format exemplars — the agent
+   prompts reference them as the pattern to follow. They work without them
+   (the required sections are also described inline in each agent prompt),
+   and your first `/feature` run produces fresh exemplars.
+
+Leave behind: everything under `app/` — that's the demo product, not the
+process.
+
+One-liner from a checkout of this repo, run inside the target repo:
+
+```sh
+SRC=/path/to/agentic-dev
+cp -r "$SRC/.claude" . && cp "$SRC/CLAUDE.md" .
+mkdir -p docs/specs docs/qa/test-plans docs/qa/defects docs/design-reviews
+cp "$SRC/docs/design-system.md" docs/
+cp "$SRC/docs/qa/TEMPLATE-defect.md" docs/qa/
+# then edit CLAUDE.md (Tech stack + Commands) and docs/design-system.md
+```
+
+(If the target repo already has a `CLAUDE.md` or `.claude/`, merge instead of
+overwrite: append the Roles/Workflow/Artifact sections to the existing
+`CLAUDE.md` and drop the agent/command files into the existing directories.)
+
+## Hardening lane boundaries
+
+Tool access is already restricted per agent via frontmatter (the ux-designer
+has no Bash); path-level rules (e.g. "UX writes only under docs/") are
+prompt-level discipline here, upgradeable with hooks or permission deny rules.
 
 ## Limitations (by design, it's a baseline)
 
