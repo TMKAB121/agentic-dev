@@ -1,0 +1,128 @@
+/* Tokens mirror docs/design-system.md — do not add values outside it. */
+:root {
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-text: #1a2233;
+  --color-text-muted: #5a6478;
+  --color-accent: #2455c3;
+  --color-accent-contrast: #ffffff;
+  --color-success: #1a7f37;
+  --color-success-bg: #e6f4ea;
+  --color-danger: #b42318;
+  --color-danger-bg: #fdecea;
+  --color-border: #d7dce5;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 2rem;
+  --radius: 8px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+}
+
+.site-header {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+main {
+  max-width: 32rem;
+  margin: var(--space-4) auto;
+  padding: 0 var(--space-3);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.badge {
+  display: inline-block;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: var(--font-size-lg);
+}
+
+.badge--loading {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.badge--ok {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.badge--error {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.status-details {
+  margin: 0 0 var(--space-2);
+}
+
+.status-row {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+
+.status-row dt {
+  color: var(--color-text-muted);
+  min-width: 8rem;
+}
+
+.status-row dd {
+  margin: 0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+button {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border: none;
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
