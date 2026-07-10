@@ -5,6 +5,7 @@
 - Severity: <blocker | major | minor>
 - Area: <frontend | backend | design>   <!-- routes the fix to the owning agent -->
 - Spec criterion violated: <spec path + criterion number>
+- Evidence: <paths under docs/qa/evidence/NNN-<slug>/, or "none">
 
 ## Steps to reproduce
 

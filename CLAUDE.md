@@ -38,6 +38,10 @@ adapt to it — nothing about the stack is hardcoded in your role.
 
 - Run the app: `node app/server.js` → http://localhost:3000
 - Run the tests: `node --test app/test/*.test.js`
+- Capture rendered evidence (QA): `node tools/browser.js dom <url>` (post-JS
+  DOM) and `node tools/browser.js shot <url> <out.png> [WxH]` — zero-dep
+  headless-Chromium wrapper; exits 2 with a clear message when no browser is
+  installed (fall back to static checks).
 
 ## Workflow rules
 
@@ -50,6 +54,14 @@ adapt to it — nothing about the stack is hardcoded in your role.
    report open items to the product owner.
 4. Ambiguity is never improvised away — it goes in OPEN QUESTIONS, and the
    orchestrator escalates it to the product owner.
+5. Fix routing is batched: defects/findings are grouped by `Area` and each
+   owning dev agent gets ONE invocation carrying all its items; frontend and
+   backend fixers run in parallel (single message) when both have work.
+6. Every `/feature` run maintains a pipeline state file (see Artifact
+   conventions) so interrupted runs resume via `/feature-resume` instead of
+   restarting.
+7. Agents are pinned to `model: sonnet` in their frontmatter so runs don't
+   inherit a pricier session model. Change deliberately, not per-run.
 
 ## Artifact conventions (the handoff contract)
 
@@ -63,6 +75,16 @@ explicit file paths.
 - Defects: `docs/qa/defects/NNN-<slug>-<n>.md` per `docs/qa/TEMPLATE-defect.md`.
   The `Area` field (frontend | backend | design) routes the fix.
 - Design verification reports: `docs/design-reviews/NNN-<slug>.md`.
+- QA evidence (screenshots, DOM dumps): `docs/qa/evidence/NNN-<slug>/` —
+  produced by the qa-engineer with `tools/browser.js`, consumed by the
+  ux-designer during design verification.
+- Pipeline state: `docs/pipeline/NNN-<slug>.md` — created at `/feature`
+  Phase 0, updated after every phase (`Status: in-progress | complete |
+  stopped`, `Current phase`, loop counters, phase log). Read by
+  `/feature-resume` and surfaced at session start by a hook.
+- Backlog / spec-number registry: `docs/backlog.md`, managed via `/backlog`.
+  When features run concurrently (e.g. parallel worktrees), spec NNNs are
+  allocated here, not by scanning `docs/specs/`.
 - Every subagent ends its reply with a structured handoff footer:
 
   ```
@@ -73,7 +95,19 @@ explicit file paths.
 
 ## Enforcement note
 
-Tool access is restricted per agent in `.claude/agents/*.md` frontmatter (e.g.
-the ux-designer has no Bash). Path-level lane boundaries are prompt-level
-discipline in this baseline; harden them later with hooks or permission
-`deny` rules if needed.
+Lane boundaries are mechanically enforced, not just prompted:
+
+- Tool access is restricted per agent in `.claude/agents/*.md` frontmatter
+  (e.g. the ux-designer has no Bash).
+- `.claude/hooks/enforce-lanes.js` (a PreToolUse hook registered in
+  `.claude/settings.json`) blocks `Write`/`Edit` outside each agent's lane,
+  blocks every actor from creating `package.json`/lockfiles/`node_modules`,
+  and blocks subagents from touching the enforcement layer itself. Unknown
+  agents fail closed — register new agents in its lane table.
+- `.claude/hooks/check-footer.js` (SubagentStop) blocks a role agent from
+  finishing without the required handoff footer.
+- Honest limitation: Bash is policed by command heuristics only (package
+  managers, `git commit/push`); file writes routed through shell redirection
+  are not caught. The hard-enforced write channels are `Write`/`Edit`, and
+  the hooks fail open on internal errors so a hook bug can never brick the
+  pipeline.

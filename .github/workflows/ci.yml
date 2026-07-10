@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run test suite
+        run: node --test app/test/*.test.js
+      - name: Zero-dependency audit
+        run: |
+          if [ -e package.json ] || [ -e package-lock.json ] || [ -d node_modules ]; then
+            echo "::error::zero-dependency rule violated — package.json/lockfile/node_modules present"
+            exit 1
+          fi
+      - name: Design-token audit
+        # Hex colors in styles.css may only appear where a custom property is
+        # being *defined*; everything else must consume tokens via var(--…).
+        run: |
+          violations=$(grep -nE '#[0-9a-fA-F]{3,8}' app/public/styles.css | grep -vE '^[0-9]+:\s*--' || true)
+          if [ -n "$violations" ]; then
+            echo "::error::hex colors outside token definitions in app/public/styles.css:"
+            echo "$violations"
+            exit 1
+          fi
