@@ -21,6 +21,26 @@ jobs:
             echo "::error::zero-dependency rule violated — package.json/lockfile/node_modules present"
             exit 1
           fi
+      - name: Plugin parity audit
+        # The plugin/ bundle republishes .claude/ for multi-project installs
+        # (Route B). Agents, commands, and the three hook scripts must stay
+        # byte-identical to their .claude/ sources so pushing here is the only
+        # place the process is edited. plugin/hooks/hooks.json and the manifests
+        # are plugin-only and deliberately not mirrored.
+        run: |
+          fail=0
+          diff -ru .claude/agents plugin/agents || fail=1
+          diff -ru .claude/commands plugin/commands || fail=1
+          for h in enforce-lanes.js check-footer.js session-start.js; do
+            diff -u ".claude/hooks/$h" "plugin/hooks/$h" || fail=1
+          done
+          for j in .claude-plugin/marketplace.json plugin/.claude-plugin/plugin.json plugin/hooks/hooks.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$j','utf8'))" || fail=1
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::plugin/ has drifted from .claude/ — re-copy the changed files so the plugin bundle matches"
+            exit 1
+          fi
       - name: Design-token audit
         # Hex colors in styles.css may only appear where a custom property is
         # being *defined*; everything else must consume tokens via var(--…).

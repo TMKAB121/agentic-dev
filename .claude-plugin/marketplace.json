@@ -1,0 +1,11 @@
+{
+  "name": "agentic-dev",
+  "owner": { "name": "tmkab121" },
+  "plugins": [
+    {
+      "name": "agentic-dev",
+      "source": "./plugin",
+      "description": "Agentic dev process: 4 role agents, /feature pipeline, lane enforcement"
+    }
+  ]
+}

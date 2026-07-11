@@ -87,6 +87,8 @@ CLAUDE.md                 project constitution: roles, stack, workflow, handoff 
 .claude/commands/         /feature, /feature-resume, /backlog, /design-review, /qa-verify
 .claude/hooks/            lane enforcement, footer check, session-start state surfacing
 .claude/settings.json     hook registration + package-manager deny rules
+plugin/                   Claude Code plugin bundle (Route B) — mirrors .claude/ + templates/
+.claude-plugin/marketplace.json  makes this repo its own installable plugin marketplace
 tools/browser.js          zero-dep headless-Chromium wrapper (QA evidence)
 docs/design-system.md     design tokens + component rules (UX-owned)
 docs/specs/               UX feature specs (NNN-<slug>.md)
@@ -97,7 +99,7 @@ docs/backlog.md           feature queue + spec-number registry (created by /back
 app/server.js             zero-dependency Node http server (API + static)
 app/public/               vanilla HTML/CSS/JS frontend
 app/test/                 node --test suite
-.github/workflows/ci.yml  CI: test suite + zero-dependency + design-token audits
+.github/workflows/ci.yml  CI: test suite + zero-dependency + design-token + plugin-parity audits
 ```
 
 ## Using this process in other projects
@@ -181,103 +183,77 @@ process improvements land by pushing here, and each project pulls them with
 its own [marketplace](https://code.claude.com/docs/en/plugin-marketplaces) —
 no separate hosting.
 
-1. **Create the plugin layout** in this repo. Plugin component directories
-   must sit at the plugin root (not under `.claude-plugin/` and not under
-   `.claude/`), so mirror the existing files into a `plugin/` directory:
+**This repo is already packaged** — the plugin bundle lives in `plugin/` and
+the marketplace file at `.claude-plugin/marketplace.json`, so you install it
+rather than build it. How it fits together, for when you evolve it:
 
-   ```
-   plugin/
-   ├── .claude-plugin/plugin.json    # {"name": "agentic-dev", "version": "0.1.0", "description": "..."}
-   ├── agents/                       # copy of .claude/agents/
-   ├── commands/                     # copy of .claude/commands/
-   ├── hooks/
-   │   ├── hooks.json                # hook registration (step 2)
-   │   ├── enforce-lanes.js          # copies of .claude/hooks/*.js
-   │   ├── check-footer.js
-   │   └── session-start.js
-   └── templates/                    # TEMPLATE-defect.md, design-system.md, browser.js
-   ```
+```
+.claude-plugin/marketplace.json   # marketplace at the repo root → source: ./plugin
+plugin/
+├── .claude-plugin/plugin.json    # name, version — bump on release
+├── agents/                       # mirror of .claude/agents/
+├── commands/                     # mirror of .claude/commands/
+├── hooks/
+│   ├── hooks.json                # hook registration (paths via ${CLAUDE_PLUGIN_ROOT})
+│   ├── enforce-lanes.js          # mirrors of .claude/hooks/*.js
+│   ├── check-footer.js
+│   └── session-start.js
+└── templates/                    # TEMPLATE-defect.md, design-system.md, browser.js
+```
 
-2. **Register the hooks in `plugin/hooks/hooks.json`** — same shape as the
-   `hooks` block in `.claude/settings.json`, but script paths must use
-   `${CLAUDE_PLUGIN_ROOT}`: installed plugins run from a cache directory, so
-   `$CLAUDE_PROJECT_DIR/.claude/hooks/...` no longer points at the scripts.
+Three things make the bundle behave once installed to a read-only plugin cache:
 
-   ```json
-   {
-     "hooks": {
-       "PreToolUse": [
-         {
-           "matcher": "Write|Edit|Bash",
-           "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-lanes.js\"" }]
-         }
-       ],
-       "SubagentStop": [
-         { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/check-footer.js\"" }] }
-       ],
-       "SessionStart": [
-         { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\"" }] }
-       ]
-     }
-   }
-   ```
+- **`hooks/hooks.json`** registers the same three hooks as
+  `.claude/settings.json`, but the command paths use `${CLAUDE_PLUGIN_ROOT}`
+  (not `$CLAUDE_PROJECT_DIR/.claude/...`, which points at the *target* repo,
+  not the cached plugin).
+- **`enforce-lanes.js` reads an optional `$CLAUDE_PROJECT_DIR/.claude/lanes.json`**
+  in the target project and falls back to its built-in table when absent — so
+  a project retargets lanes to its own paths (`src/components/` instead of
+  `app/public/`) without forking the cached hook. The file is either a bare
+  `{ "<agent>": { "allow": [...], "hint": "..." } }` map or a structured
+  `{ "lanes": {...}, "protected": [...], "bashDeny": [{ "pattern", "flags?", "why" }] }`.
+- **The hooks strip plugin namespacing** — an agent surfacing as
+  `agentic-dev:ux-designer` resolves to the `ux-designer` lane/footer rule, so
+  the process works out of the box without per-project lane edits.
 
-3. **Make the lane table per-project.** Inside a plugin, `enforce-lanes.js`
-   lives in the read-only plugin cache, so target projects can't edit `LANES`
-   directly. Change the plugin copy to read an optional
-   `$CLAUDE_PROJECT_DIR/.claude/lanes.json` (same shape as the `LANES` object,
-   plus optional `protected` and `bashDeny` overrides) and fall back to the
-   built-in table when absent. Each project then declares its own paths
-   without forking the hook.
+**Editing the process:** change the `.claude/` copies (that's what dogfoods in
+this repo), then re-copy into `plugin/`. CI's *plugin parity audit* fails the
+build if `plugin/agents`, `plugin/commands`, or the three hook scripts drift
+from their `.claude/` sources — the bundle stays a faithful mirror. Bump
+`version` in `plugin.json` when you cut a release so projects update
+deliberately, not on every commit.
 
-4. **Publish it via a marketplace file** at the **repo root**,
-   `.claude-plugin/marketplace.json`:
+**Install in a target project**:
 
-   ```json
-   {
-     "name": "agentic-dev",
-     "owner": { "name": "tmkab121" },
-     "plugins": [
-       { "name": "agentic-dev", "source": "./plugin", "description": "Agentic dev process: 4 role agents, /feature pipeline, lane enforcement" }
-     ]
-   }
-   ```
+```shell
+/plugin marketplace add tmkab121/agentic-dev
+/plugin install agentic-dev@agentic-dev
+```
 
-   Push, and the plugin is installable from the GitHub repo. Bump `version`
-   in `plugin.json` when you cut a release — projects then update
-   deliberately instead of on every commit.
+Then do the four per-project edits from the top of this section (CLAUDE.md
+sections, design tokens, artifact dirs, and — if your paths differ from the
+demo's — a `.claude/lanes.json`). Plugin commands are namespaced:
+`/agentic-dev:feature "add X"`, `/agentic-dev:backlog list`, etc.
 
-5. **Install in a target project**:
+**Smoke-test once per install**: run a trivial `/agentic-dev:feature` and
+confirm the lane hook isn't denying everything. The hook keys off the
+`agent_type` field and unknown agents fail closed; namespaced types like
+`agentic-dev:ux-designer` are stripped back to the built-in lane
+automatically, so you only need `.claude/lanes.json` when the target's *paths*
+differ. `claude plugin validate` catches structural mistakes before you push.
 
-   ```shell
-   /plugin marketplace add tmkab121/agentic-dev
-   /plugin install agentic-dev@agentic-dev
-   ```
+For teams, the target repo can auto-prompt installation by declaring the
+marketplace in its `.claude/settings.json`:
 
-   Then do the four per-project edits from the top of this section
-   (CLAUDE.md sections, design tokens, artifact dirs, `.claude/lanes.json`).
-   Plugin commands are namespaced: `/agentic-dev:feature "add X"`,
-   `/agentic-dev:backlog list`, etc.
-
-6. **Smoke-test once per install**: run a trivial
-   `/agentic-dev:feature` and confirm the lane hook isn't denying everything.
-   The hook keys off the `agent_type` field in hook input, and unknown agents
-   fail closed — if plugin-provided agents surface with a namespaced type
-   (e.g. `agentic-dev:ux-designer`), add those keys to the lane table /
-   `lanes.json`. `claude plugin validate` catches structural mistakes before
-   you push.
-
-   For teams, the target repo can auto-prompt installation by declaring the
-   marketplace in its `.claude/settings.json`:
-
-   ```json
-   {
-     "extraKnownMarketplaces": {
-       "agentic-dev": { "source": { "source": "github", "repo": "tmkab121/agentic-dev" } }
-     },
-     "enabledPlugins": { "agentic-dev@agentic-dev": true }
-   }
-   ```
+```json
+{
+  "extraKnownMarketplaces": {
+    "agentic-dev": { "source": { "source": "github", "repo": "tmkab121/agentic-dev" } }
+  },
+  "enabledPlugins": { "agentic-dev@agentic-dev": true }
+}
+```
 
 ### Route C: personal user-level install
 

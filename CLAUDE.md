@@ -52,8 +52,14 @@ adapt to it — nothing about the stack is hardcoded in your role.
    devs never write tests.
 3. Fix loops are bounded (max 2 iterations each). When exhausted, stop and
    report open items to the product owner.
-4. Ambiguity is never improvised away — it goes in OPEN QUESTIONS, and the
-   orchestrator escalates it to the product owner.
+4. Ambiguity and product-owner-level decisions are never improvised away. Any
+   choice the product owner should get a say in — design direction,
+   infrastructure/architecture, scope, security or data tradeoffs, or a
+   genuinely ambiguous requirement — goes in OPEN QUESTIONS rather than being
+   decided silently. This holds for all four agents. The orchestrator treats a
+   non-empty OPEN QUESTIONS from any phase as a hard stop: it surfaces the
+   items to the product owner and waits for answers before proceeding, then
+   re-invokes the agent with those answers.
 5. Fix routing is batched: defects/findings are grouped by `Area` and each
    owning dev agent gets ONE invocation carrying all its items; frontend and
    backend fixers run in parallel (single message) when both have work.
