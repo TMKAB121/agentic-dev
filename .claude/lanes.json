@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "allow": [],
+    "installers": ["backend-developer"]
+  }
+}

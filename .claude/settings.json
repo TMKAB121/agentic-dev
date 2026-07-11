@@ -1,14 +1,6 @@
 {
   "permissions": {
-    "deny": [
-      "Bash(npm *)",
-      "Bash(npx *)",
-      "Bash(yarn *)",
-      "Bash(pnpm *)",
-      "Bash(bun *)",
-      "Bash(pip *)",
-      "Bash(pip3 *)"
-    ]
+    "deny": []
   },
   "hooks": {
     "PreToolUse": [

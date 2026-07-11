@@ -15,12 +15,12 @@ jobs:
           node-version: 22
       - name: Run test suite
         run: node --test app/test/*.test.js
-      - name: Zero-dependency audit
-        run: |
-          if [ -e package.json ] || [ -e package-lock.json ] || [ -d node_modules ]; then
-            echo "::error::zero-dependency rule violated — package.json/lockfile/node_modules present"
-            exit 1
-          fi
+      - name: Dependency audit
+        # Mirrors the enforce-lanes dependency policy: with an empty
+        # dependencies.allow in .claude/lanes.json this enforces zero
+        # dependencies; once packages are approved it instead verifies
+        # package.json declares only approved packages.
+        run: node tools/dep-audit.js
       - name: Plugin parity audit
         # The plugin/ bundle republishes .claude/ for multi-project installs
         # (Route B). Agents, commands, and the three hook scripts must stay

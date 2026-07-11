@@ -26,13 +26,38 @@ minimal zero-dependency demo app the process operates on.
 ## Tech stack (single source of truth — agents read this, never assume)
 
 - **Frontend**: vanilla HTML/CSS/JS in `app/public/`. No frameworks.
-- **Backend**: Node.js built-in `node:http` in `app/server.js`. **No npm
-  dependencies allowed** — there is deliberately no `package.json`.
+- **Backend**: Node.js built-in `node:http` in `app/server.js`. **Zero
+  dependencies by default** — there is deliberately no `package.json` until the
+  product owner approves one (see Dependency policy below).
 - **Tests**: Node's built-in runner (`node:test` + `node:assert`) in `app/test/`.
 
 Agents: derive all stack decisions from this section. Do not introduce
-frameworks, dependencies, or package managers. If the stack here changes,
-adapt to it — nothing about the stack is hardcoded in your role.
+frameworks, dependencies, or package managers on your own. If you believe a
+dependency is warranted, escalate it under OPEN QUESTIONS — do not add it
+silently. If the stack here changes, adapt to it — nothing about the stack is
+hardcoded in your role.
+
+### Dependency policy (product-owner gated)
+
+Zero dependencies is the **default**, not an absolute ban. The product owner
+can approve specific packages per project by adding their bare names to
+`dependencies.allow` in `.claude/lanes.json` (a protected, product-owner-only
+file). The model is a **per-package allowlist**:
+
+- With an **empty** allowlist (this repo's default), package managers,
+  `package.json`, and lockfiles are all denied for everyone — the zero-dep
+  posture is unchanged.
+- Once a package is on the allowlist, the **installer lane**
+  (`dependencies.installers`, default `backend-developer`) may install *that*
+  package and declare it in `package.json`; anything not on the list stays
+  denied.
+- Agents cannot edit `.claude/lanes.json` (it is in the protected set), so the
+  approval decision is always the product owner's. The flow is: backend raises
+  the package under OPEN QUESTIONS → product owner adds it to the allowlist →
+  backend installs and wires it up.
+
+This is enforced mechanically by `.claude/hooks/enforce-lanes.js` (see the
+Enforcement note).
 
 ## Commands
 
@@ -106,14 +131,21 @@ Lane boundaries are mechanically enforced, not just prompted:
 - Tool access is restricted per agent in `.claude/agents/*.md` frontmatter
   (e.g. the ux-designer has no Bash).
 - `.claude/hooks/enforce-lanes.js` (a PreToolUse hook registered in
-  `.claude/settings.json`) blocks `Write`/`Edit` outside each agent's lane,
-  blocks every actor from creating `package.json`/lockfiles/`node_modules`,
-  and blocks subagents from touching the enforcement layer itself. Unknown
-  agents fail closed — register new agents in its lane table.
+  `.claude/settings.json`) blocks `Write`/`Edit` outside each agent's lane and
+  blocks subagents from touching the enforcement layer itself. Unknown agents
+  fail closed — register new agents in its lane table.
+- The same hook enforces the **Dependency policy**: it reads
+  `dependencies.allow` / `dependencies.installers` from `.claude/lanes.json`
+  and, per package-manager Bash command and per `package.json` write, permits
+  only approved packages for the installer lane. With an empty allowlist it
+  denies package managers, `package.json`, lockfiles, and `node_modules` for
+  everyone (the zero-dependency default). Deny messages steer the agent to
+  OPEN QUESTIONS rather than a retry.
 - `.claude/hooks/check-footer.js` (SubagentStop) blocks a role agent from
   finishing without the required handoff footer.
 - Honest limitation: Bash is policed by command heuristics only (package
-  managers, `git commit/push`); file writes routed through shell redirection
-  are not caught. The hard-enforced write channels are `Write`/`Edit`, and
-  the hooks fail open on internal errors so a hook bug can never brick the
-  pipeline.
+  managers, `git commit/push`); file writes routed through shell redirection,
+  and `package.json` files created by a package manager rather than through
+  `Write`/`Edit`, are not caught. The hard-enforced write channels are
+  `Write`/`Edit`, and the hooks fail open on internal errors so a hook bug can
+  never brick the pipeline.

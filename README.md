@@ -39,7 +39,7 @@ phases. The full rules live in [CLAUDE.md](CLAUDE.md).
 |---|---|---|---|
 | `ux-designer` | Design specs, design tokens, accessibility, **design verification** after QA | Writing any app code; has no Bash access | `docs/specs/`, `docs/design-system.md`, `docs/design-reviews/` |
 | `frontend-developer` | UI implementation per spec | Editing specs, backend code, or tests | `app/public/` |
-| `backend-developer` | API, server, data, infra/CI | Editing UI files, specs, or tests; adding dependencies | `app/server.js` |
+| `backend-developer` | API, server, data, infra/CI; installing product-owner-approved dependencies | Editing UI files, specs, or tests; adding unapproved dependencies | `app/server.js` |
 | `qa-engineer` | Test plans, automated tests, verification, defect reports | Fixing product code | `app/test/`, `docs/qa/` |
 
 ## The pipeline (`/feature`)
@@ -126,11 +126,13 @@ port as-is:
 3. The artifact directories: `docs/specs/`, `docs/qa/test-plans/`,
    `docs/qa/defects/`, `docs/qa/evidence/`, `docs/design-reviews/`,
    `docs/pipeline/`.
-4. The `LANES` path table in `enforce-lanes.js` — the one deliberately
-   project-coupled piece; it maps each agent to the target repo's real paths
-   (e.g. `src/components/` instead of `app/public/`). The package-manager
-   `permissions.deny` rules are likewise this demo's zero-dependency policy,
-   not part of the process — keep or drop per project.
+4. The lane path table and dependency policy in `.claude/lanes.json` — the one
+   deliberately project-coupled piece; it maps each agent to the target repo's
+   real paths (e.g. `src/components/` instead of `app/public/`) and lists which
+   packages the product owner has approved (`dependencies.allow`) and which
+   lane may install them (`dependencies.installers`). A project that genuinely
+   uses dependencies just seeds `dependencies.allow`; leaving it empty keeps
+   the zero-dependency posture. `enforce-lanes.js` itself is copied verbatim.
 
 ### Route A: copy the files
 
@@ -138,10 +140,11 @@ port as-is:
    - `.claude/agents/` — the four role agents
    - `.claude/commands/` — `/feature`, `/feature-resume`, `/backlog`,
      `/design-review`, `/qa-verify`
-   - `.claude/hooks/` + `.claude/settings.json` — mechanical lane enforcement
-     (if the target repo already has a `settings.json`, merge the `hooks` and
-     `permissions.deny` entries instead of overwriting; adjust the lane table
-     in `enforce-lanes.js` if the target's paths differ)
+   - `.claude/hooks/` + `.claude/settings.json` + `.claude/lanes.json` —
+     mechanical lane enforcement (if the target repo already has a
+     `settings.json`, merge the `hooks` entries instead of overwriting; retarget
+     the lane paths and dependency allowlist in `.claude/lanes.json` if the
+     target differs — `enforce-lanes.js` is copied verbatim)
    - `tools/browser.js` — QA evidence capture (degrades gracefully where no
      Chromium is installed)
    - `docs/qa/TEMPLATE-defect.md`
@@ -291,10 +294,18 @@ Lane boundaries are enforced mechanically, on top of the prompt discipline:
   PreToolUse hook (registered in `.claude/settings.json`) that identifies the
   active subagent from the hook input and denies `Write`/`Edit` outside its
   lane — with deny messages that steer the agent back into the process (file
-  a defect, raise an OPEN QUESTION) instead of retrying. It also blocks
-  `package.json`/lockfiles/`node_modules` for everyone (the zero-dependency
-  rule) and protects the enforcement layer from subagent edits. Unknown
-  agents fail closed.
+  a defect, raise an OPEN QUESTION) instead of retrying. It protects the
+  enforcement layer from subagent edits, and unknown agents fail closed.
+- **Dependency policy** rides the same hook. Zero dependencies is the default,
+  but the product owner can approve specific packages per project via a
+  `dependencies.allow` allowlist in `.claude/lanes.json`. With an empty
+  allowlist the hook denies package managers, `package.json`, lockfiles, and
+  `node_modules` for everyone (the zero-dependency posture). Add a package name
+  and the installer lane (default `backend-developer`) may install *that*
+  package and declare it in `package.json` — nothing else. Agents can't edit
+  `.claude/lanes.json`, so the approval is always the product owner's: backend
+  raises the package under OPEN QUESTIONS, you add it to the allowlist, backend
+  wires it up.
 - **Handoff contract**: `.claude/hooks/check-footer.js` (SubagentStop) blocks
   a role agent from finishing without the ARTIFACTS WRITTEN / STATUS /
   OPEN QUESTIONS footer.
