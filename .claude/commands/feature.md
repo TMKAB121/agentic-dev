@@ -6,10 +6,10 @@ The product owner's ask: **$ARGUMENTS**
 
 You are the orchestrator. Run the pipeline below using the Agent tool with the
 project subagents (`ux-designer`, `frontend-developer`, `backend-developer`,
-`qa-engineer`). Rules that apply throughout:
+`qa-engineer`, `technical-writer`). Rules that apply throughout:
 
 - Pass explicit file paths in every agent prompt — subagents share no context.
-- **OPEN QUESTIONS is a hard stop (all four agents, every phase).** After each
+- **OPEN QUESTIONS is a hard stop (all five agents, every phase).** After each
   agent returns, read its handoff footer. If its OPEN QUESTIONS is anything
   other than "none", STOP the pipeline immediately — do not start the next
   phase, do not invoke any other agent — and put the questions to the product
@@ -65,7 +65,7 @@ Design fix-loop iteration: 0/2
 
 Update `Current phase`, the loop counters, and append a phase-log row after
 every phase. On stop (exhausted loop, open questions the owner must answer
-offline) set `Status: stopped`; after Phase 7 acceptance set
+offline) set `Status: stopped`; after Phase 8 acceptance set
 `Status: complete`.
 
 **Lane pre-flight (still Phase 0, before any dev agent runs).** The lane hook
@@ -133,10 +133,26 @@ If CHANGES REQUIRED — batch findings by owning area exactly as in Phase 4
 re-review. If still not APPROVED after 2 iterations, stop and report the open
 findings to the product owner.
 
-## Phase 7 — Report to the product owner
+## Phase 7 — Documentation
+
+Once the design is APPROVED, the feature is at its final shipped state — the
+right moment to document it. Invoke `technical-writer` (Mode 1 + Mode 2) with:
+the ask, the spec path `docs/specs/NNN-<slug>.md`, the changed-files lists from
+both dev handoffs, and the design-review verdict. It creates or idempotently
+updates the root `README.md` and the project docs under `docs/project/`
+(overview + a per-feature note) to match what actually shipped.
+
+The writer's lane covers `README.md` and `docs/project/` only — do not author
+these docs yourself. Treat its handoff footer like any other agent's: if its
+OPEN QUESTIONS is anything other than "none" (e.g. a missing `.env.example`, a
+code/spec disagreement it spotted, an unclear project name), STOP and surface
+those to the product owner before Phase 8, then re-invoke the writer with the
+answers.
+
+## Phase 8 — Report to the product owner
 
 Present a summary table: phase · agent · artifacts written · status. State
-the final QA verdict and design verdict, list any open items, and ask the
-product owner for acceptance. On acceptance, set the state file's
-`Status: complete` (and the backlog row to `done`, if one exists). Do not
-commit unless they ask.
+the final QA verdict, design verdict, and the docs updated in Phase 7, list any
+open items, and ask the product owner for acceptance. On acceptance, set the
+state file's `Status: complete` (and the backlog row to `done`, if one exists).
+Do not commit unless they ask.

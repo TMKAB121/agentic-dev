@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Lanes template audit — proves the shipped plugin/templates/lanes.json (the
 // copy-and-adapt starter a reused project drops in as .claude/lanes.json) is
-// valid, covers all four agents, and actually agrees with the enforcement hook.
+// valid, covers all five agents, and actually agrees with the enforcement hook.
 //
 // This is the regression guard for the reuse gap the template closes: with the
 // template active, backend-developer can write terraform/ and server/ (the
@@ -21,7 +21,7 @@ const root = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 const at = (p) => path.join(root, p);
 const TEMPLATE = 'plugin/templates/lanes.json';
 const HOOK = at('plugin/hooks/enforce-lanes.js');
-const AGENTS = ['ux-designer', 'frontend-developer', 'backend-developer', 'qa-engineer'];
+const AGENTS = ['ux-designer', 'frontend-developer', 'backend-developer', 'qa-engineer', 'technical-writer'];
 
 function fail(msg) {
   console.error(`::error::${msg}`);
@@ -67,6 +67,9 @@ const cases = [
   ['backend-developer', 'server/index.js', true, 'backend lane must reach the server/ backend'],
   ['frontend-developer', 'server/index.js', false, 'frontend must not write the backend (cross-lane)'],
   ['backend-developer', 'server/__tests__/api.test.js', false, 'tests are QA\'s lane (backend exclude must bite)'],
+  ['technical-writer', 'README.md', true, 'docs lane must reach the root README.md'],
+  ['technical-writer', 'docs/project/overview.md', true, 'docs lane must reach docs/project/'],
+  ['technical-writer', 'server/index.js', false, 'writer must not touch code (cross-lane)'],
 ];
 
 const problems = [];

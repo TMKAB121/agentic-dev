@@ -16,6 +16,7 @@ const PIPELINE_AGENTS = new Set([
   'frontend-developer',
   'backend-developer',
   'qa-engineer',
+  'technical-writer',
 ]);
 
 function lastAssistantText(transcriptPath) {

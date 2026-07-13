@@ -22,6 +22,10 @@ minimal zero-dependency demo app the process operates on.
   touches UI files or tests.
 - **qa-engineer** — writes test plans and automated tests, runs them, verifies
   acceptance criteria, files defect reports. Never fixes product code.
+- **technical-writer** — owns project documentation. After design verification,
+  creates or idempotently updates the root `README.md` and the project docs
+  under `docs/project/` so they match the shipped feature. Never writes
+  application code, specs, or tests.
 
 ## Tech stack (single source of truth — agents read this, never assume)
 
@@ -71,17 +75,19 @@ Enforcement note).
 ## Workflow rules
 
 1. Features flow: UX spec → frontend + backend (parallel) → QA → QA fix loop →
-   UX design verification → design fix loop → product-owner acceptance.
+   UX design verification → design fix loop → documentation → product-owner
+   acceptance.
 2. No agent leaves its lane: UX never writes app code; devs never edit
    `docs/specs/` or `docs/design-system.md`; QA never fixes product code;
-   devs never write tests.
+   devs never write tests; the technical-writer writes only `README.md` and
+   `docs/project/`, never code, specs, or tests.
 3. Fix loops are bounded (max 2 iterations each). When exhausted, stop and
    report open items to the product owner.
 4. Ambiguity and product-owner-level decisions are never improvised away. Any
    choice the product owner should get a say in — design direction,
    infrastructure/architecture, scope, security or data tradeoffs, or a
    genuinely ambiguous requirement — goes in OPEN QUESTIONS rather than being
-   decided silently. This holds for all four agents. The orchestrator treats a
+   decided silently. This holds for all five agents. The orchestrator treats a
    non-empty OPEN QUESTIONS from any phase as a hard stop: it surfaces the
    items to the product owner and waits for answers before proceeding, then
    re-invokes the agent with those answers.
@@ -106,6 +112,11 @@ explicit file paths.
 - Defects: `docs/qa/defects/NNN-<slug>-<n>.md` per `docs/qa/TEMPLATE-defect.md`.
   The `Area` field (frontend | backend | design) routes the fix.
 - Design verification reports: `docs/design-reviews/NNN-<slug>.md`.
+- Project documentation: the root `README.md` and `docs/project/` (a running
+  `docs/project/overview.md` plus additive per-feature notes
+  `docs/project/features/NNN-<slug>.md`), owned by the technical-writer. Updated
+  idempotently — the first feature creates the README, later features update
+  only the sections they change.
 - QA evidence (screenshots, DOM dumps): `docs/qa/evidence/NNN-<slug>/` —
   produced by the qa-engineer with `tools/browser.js`, consumed by the
   ux-designer during design verification.

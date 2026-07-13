@@ -2,7 +2,7 @@
 
 A baseline, in-house **agentic development process** built entirely on Claude
 Code's native subagents — no third-party orchestration frameworks, no npm
-dependencies. Four role agents collaborate through files in this repo, driven
+dependencies. Five role agents collaborate through files in this repo, driven
 by slash commands, with the human acting as **product owner**. A minimal
 zero-dependency demo app (a status dashboard) gives the process something real
 to operate on.
@@ -27,13 +27,14 @@ ux-designer   frontend-developer      backend-developer    qa-engineer
    │               │                          │                │
    └──────► artifacts on disk: docs/specs/ · docs/design-system.md ◄──┘
             docs/qa/ · docs/design-reviews/ · app/
+            + technical-writer → README.md · docs/project/
 ```
 
 Subagents share no context, so **every handoff is a file** — specs, defect
 reports, design reviews — and the orchestrator passes explicit paths between
 phases. The full rules live in [CLAUDE.md](CLAUDE.md).
 
-## The four agents
+## The five agents
 
 | Agent | Owns | Forbidden | Key artifacts |
 |---|---|---|---|
@@ -41,6 +42,7 @@ phases. The full rules live in [CLAUDE.md](CLAUDE.md).
 | `frontend-developer` | UI implementation per spec | Editing specs, backend code, or tests | `app/public/` |
 | `backend-developer` | API, server, data, infra/CI; installing product-owner-approved dependencies | Editing UI files, specs, or tests; adding unapproved dependencies | `app/server.js` |
 | `qa-engineer` | Test plans, automated tests, verification, defect reports | Fixing product code | `app/test/`, `docs/qa/` |
+| `technical-writer` | Project docs kept in sync with the shipped feature (idempotent) | Writing code, specs, or tests | `README.md`, `docs/project/` |
 
 ## The pipeline (`/feature`)
 
@@ -52,7 +54,8 @@ You (product owner): /feature "add X"
   4. QA fix loop: defects routed by Area to the owning dev, QA re-verifies (max 2)
   5. ux-designer verifies the implementation against the spec → APPROVED | CHANGES REQUIRED
   6. Design fix loop: findings → dev → QA regression → UX re-review (max 2)
-  7. Summary back to you for final acceptance
+  7. technical-writer creates/updates README.md + docs/project/ for the shipped feature
+  8. Summary back to you for final acceptance
 ```
 
 Open questions from any agent stop the line and come back to you. Exhausted
@@ -83,7 +86,7 @@ source.
 
 ```
 CLAUDE.md                 project constitution: roles, stack, workflow, handoff contract
-.claude/agents/           the four role agents (markdown + YAML frontmatter)
+.claude/agents/           the five role agents (markdown + YAML frontmatter)
 .claude/commands/         /feature, /feature-resume, /backlog, /design-review, /qa-verify
 .claude/hooks/            lane enforcement, footer check, session-start state surfacing
 .claude/settings.json     hook registration + package-manager deny rules

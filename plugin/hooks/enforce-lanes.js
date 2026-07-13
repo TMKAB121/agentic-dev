@@ -50,6 +50,10 @@ const DEFAULT_LANES = {
     allow: ['app/test/', 'docs/qa/'],
     hint: 'A failing behavior becomes a defect report in docs/qa/defects/ — never a code fix.',
   },
+  'technical-writer': {
+    allow: ['README.md', 'docs/project/'],
+    hint: 'You document the shipped state; code, specs, tests, and other docs are other lanes — raise an OPEN QUESTION if you are blocked.',
+  },
 };
 
 // Subagents may not touch the enforcement layer itself.
