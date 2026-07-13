@@ -87,7 +87,7 @@ CLAUDE.md                 project constitution: roles, stack, workflow, handoff 
 .claude/commands/         /feature, /feature-resume, /backlog, /design-review, /qa-verify
 .claude/hooks/            lane enforcement, footer check, session-start state surfacing
 .claude/settings.json     hook registration + package-manager deny rules
-plugin/                   Claude Code plugin bundle (Route B) — mirrors .claude/ + templates/
+plugin/                   Claude Code plugin bundle — mirrors .claude/ + templates/
 .claude-plugin/marketplace.json  makes this repo its own installable plugin marketplace
 tools/browser.js          zero-dep headless-Chromium wrapper (QA evidence)
 docs/design-system.md     design tokens + component rules (UX-owned)
@@ -104,87 +104,36 @@ app/test/                 node --test suite
 
 ## Using this process in other projects
 
-The process is plain markdown plus three small hook scripts — nothing to
-install, no runtime. There are three ways to reuse it, ordered by how much
-you intend to keep iterating on the process itself:
+This process is packaged as a **Claude Code plugin**, and that is how you adopt
+it: every project installs the same agents, commands, and hooks from this repo
+as the single source of truth. Process improvements land by pushing here; each
+project pulls them with `/plugin marketplace update` instead of re-copying
+files. This repo doubles as its own
+[marketplace](https://code.claude.com/docs/en/plugin-marketplaces) — no separate
+hosting.
 
-| Route | Best for | How process updates reach projects |
-|---|---|---|
-| **A. Copy the files** | Adopting once in a repo that will diverge | Manual re-copy |
-| **B. Package as a Claude Code plugin** | Running the same process across several repos while evolving it here | Push here → `/plugin marketplace update` in each project |
-| **C. Personal `~/.claude`** | Quick personal reuse of the agents/commands only | Edit in place; applies to all your projects |
+Four things are **always authored per-project** — the plugin ships the process,
+not your product's specifics:
 
-Whichever route you pick, four things are **always per-project** and never
-port as-is:
-
-1. `CLAUDE.md` — rewrite the **Tech stack** and **Commands** sections (agents
-   build with whatever the target's CLAUDE.md declares: React, Python,
-   anything). The Roles, Workflow rules, and Artifact conventions sections
-   carry over unchanged — they *are* the process.
-2. `docs/design-system.md` — swap the placeholder tokens for the target
-   product's brand values.
-3. The artifact directories: `docs/specs/`, `docs/qa/test-plans/`,
+1. `CLAUDE.md` — write the **Tech stack** and **Commands** sections for the
+   target (agents build with whatever it declares: React, Python, anything).
+   The Roles, Workflow rules, and Artifact conventions sections carry over
+   unchanged — they *are* the process (copy them from this repo's `CLAUDE.md`).
+2. `docs/design-system.md` — start from `plugin/templates/design-system.md` and
+   swap the placeholder tokens for the target product's brand values.
+3. The artifact directories (`docs/specs/`, `docs/qa/test-plans/`,
    `docs/qa/defects/`, `docs/qa/evidence/`, `docs/design-reviews/`,
-   `docs/pipeline/`.
-4. The lane path table and dependency policy in `.claude/lanes.json` — the one
-   deliberately project-coupled piece; it maps each agent to the target repo's
-   real paths (e.g. `src/components/` instead of `app/public/`) and lists which
-   packages the product owner has approved (`dependencies.allow`) and which
-   lane may install them (`dependencies.installers`). A project that genuinely
-   uses dependencies just seeds `dependencies.allow`; leaving it empty keeps
-   the zero-dependency posture. `enforce-lanes.js` itself is copied verbatim.
+   `docs/pipeline/`) — created as the agents write them; no setup needed.
+4. `.claude/lanes.json` — the one deliberately project-coupled file. It maps
+   each agent to the target repo's real paths (e.g. `src/components/` instead of
+   `app/public/`) and lists which packages the product owner has approved
+   (`dependencies.allow`) and which lane may install them
+   (`dependencies.installers`). Copy `plugin/templates/lanes.json` and adapt the
+   paths; leaving `dependencies.allow` empty keeps the zero-dependency posture.
+   You only need this file when the target's paths differ from the demo's — the
+   plugin's `enforce-lanes.js` ships a built-in table for this repo's tree.
 
-### Route A: copy the files
-
-1. **Copy verbatim** (fully stack-agnostic):
-   - `.claude/agents/` — the four role agents
-   - `.claude/commands/` — `/feature`, `/feature-resume`, `/backlog`,
-     `/design-review`, `/qa-verify`
-   - `.claude/hooks/` + `.claude/settings.json` + `.claude/lanes.json` —
-     mechanical lane enforcement (if the target repo already has a
-     `settings.json`, merge the `hooks` entries instead of overwriting; retarget
-     the lane paths and dependency allowlist in `.claude/lanes.json` if the
-     target differs — `enforce-lanes.js` is copied verbatim)
-   - `tools/browser.js` — QA evidence capture (degrades gracefully where no
-     Chromium is installed)
-   - `docs/qa/TEMPLATE-defect.md`
-2. **Copy `CLAUDE.md` and `docs/design-system.md`, then do the four
-   per-project edits** listed above (CLAUDE.md sections, tokens, artifact
-   directories, lane table).
-3. **Optional but recommended**: copy the three seeded `001-status-dashboard`
-   artifacts (spec, test plan, design review) as format exemplars — the agent
-   prompts reference them as the pattern to follow. They work without them
-   (the required sections are also described inline in each agent prompt),
-   and your first `/feature` run produces fresh exemplars.
-
-Leave behind: everything under `app/` — that's the demo product, not the
-process.
-
-One-liner from a checkout of this repo, run inside the target repo:
-
-```sh
-SRC=/path/to/agentic-dev
-cp -r "$SRC/.claude" . && cp "$SRC/CLAUDE.md" .
-mkdir -p tools docs/specs docs/qa/test-plans docs/qa/defects docs/qa/evidence \
-         docs/design-reviews docs/pipeline
-cp "$SRC/tools/browser.js" tools/
-cp "$SRC/docs/design-system.md" docs/
-cp "$SRC/docs/qa/TEMPLATE-defect.md" docs/qa/
-# then edit CLAUDE.md (Tech stack + Commands) and docs/design-system.md
-```
-
-(If the target repo already has a `CLAUDE.md` or `.claude/`, merge instead of
-overwrite: append the Roles/Workflow/Artifact sections to the existing
-`CLAUDE.md` and drop the agent/command files into the existing directories.)
-
-### Route B: package as a Claude Code plugin (recommended for multi-project use)
-
-A [plugin](https://code.claude.com/docs/en/plugins) makes this repo the single
-source of truth: every project installs the same agents, commands, and hooks;
-process improvements land by pushing here, and each project pulls them with
-`/plugin marketplace update` instead of re-copying files. This repo doubles as
-its own [marketplace](https://code.claude.com/docs/en/plugin-marketplaces) —
-no separate hosting.
+### How the plugin bundle fits together
 
 **This repo is already packaged** — the plugin bundle lives in `plugin/` and
 the marketplace file at `.claude-plugin/marketplace.json`, so you install it
@@ -235,17 +184,16 @@ from their `.claude/` sources — the bundle stays a faithful mirror. Bump
 `version` in `plugin.json` when you cut a release so projects update
 deliberately, not on every commit.
 
-**Install in a target project**:
+### Install in a target project
 
 ```shell
 /plugin marketplace add tmkab121/agentic-dev
 /plugin install agentic-dev@agentic-dev
 ```
 
-Then do the four per-project edits from the top of this section (CLAUDE.md
-sections, design tokens, artifact dirs, and — if your paths differ from the
-demo's — a `.claude/lanes.json`, copied from `plugin/templates/lanes.json`).
-Plugin commands are namespaced:
+Then author the per-project pieces above (CLAUDE.md sections, design tokens,
+and — if your paths differ from the demo's — a `.claude/lanes.json` copied from
+`plugin/templates/lanes.json`). Plugin commands are namespaced:
 `/agentic-dev:feature "add X"`, `/agentic-dev:backlog list`, etc.
 
 **Smoke-test once per install**: run a trivial `/agentic-dev:feature` and
@@ -266,16 +214,6 @@ marketplace in its `.claude/settings.json`:
   "enabledPlugins": { "agentic-dev@agentic-dev": true }
 }
 ```
-
-### Route C: personal user-level install
-
-Copy `.claude/agents/` and `.claude/commands/` into `~/.claude/agents/` and
-`~/.claude/commands/` and the four roles plus the slash commands exist in
-every project you open, with un-namespaced names and zero project setup.
-Do **not** move the hooks into `~/.claude/settings.json`: they would fire in
-every repo you touch, and the lane table only makes sense per project. Use
-this as a stopgap for trying the roles somewhere quickly; for real adoption
-the target still needs the per-project pieces (routes A/B).
 
 ### Experimenting with process variants
 
