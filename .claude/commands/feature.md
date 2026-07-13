@@ -19,6 +19,16 @@ project subagents (`ux-designer`, `frontend-developer`, `backend-developer`,
   re-invoke the raising agent(s) with those answers and continue. Log every
   question and its answer in the pipeline state file's "Open questions log".
   Never answer an agent's open question yourself.
+- **A subagent's quoted lane/Bash denial is authoritative — do not "verify" it
+  by attempting the action yourself.** The hook exempts the orchestrator
+  (`if (!agent) return`), so your own probe (writing the file, running `npm`)
+  always succeeds and will fool you into thinking the subagent confabulated. To
+  check a reported block, replay it *as the subagent* — pipe a simulated
+  PreToolUse payload to the hook:
+  `echo '{"tool_name":"Write","agent_type":"backend-developer","tool_input":{"file_path":"terraform/main.tf"}}' | node "${CLAUDE_PLUGIN_ROOT:-.claude}/hooks/enforce-lanes.js"`
+  — a `"permissionDecision":"deny"` in the output confirms the block is real.
+  When a lane genuinely blocks work the pipeline requires, the fix is the
+  product owner retargeting `.claude/lanes.json`, never a workaround.
 - After each phase, update the pipeline state file (Phase 0) before starting
   the next phase — it is what makes the run resumable via `/feature-resume`.
 - Do not skip phases, do not do an agent's work yourself, do not commit unless
@@ -57,6 +67,18 @@ Update `Current phase`, the loop counters, and append a phase-log row after
 every phase. On stop (exhausted loop, open questions the owner must answer
 offline) set `Status: stopped`; after Phase 7 acceptance set
 `Status: complete`.
+
+**Lane pre-flight (still Phase 0, before any dev agent runs).** The lane hook
+only lets each dev agent write the dirs its lane lists; the built-in defaults
+cover *this* repo's tree (`app/`, `.github/`, `tools/` for backend). If
+CLAUDE.md's declared stack puts code a dev agent must write outside its lane —
+most often infra like `terraform/` or a `server/` backend — confirm
+`.claude/lanes.json` already covers it. Probe the risky path with a simulated
+payload (the authoritative-denial rule above shows how); a
+`"permissionDecision":"deny"` means Phase 2 would stall. If so, STOP and ask the
+product owner to add a `.claude/lanes.json` (copy the plugin's
+`templates/lanes.json` and adapt the paths) before continuing. Never write
+`.claude/lanes.json` yourself — it is the product owner's protected file.
 
 ## Phase 1 — Design
 

@@ -41,6 +41,12 @@ jobs:
             echo "::error::plugin/ has drifted from .claude/ — re-copy the changed files so the plugin bundle matches"
             exit 1
           fi
+      - name: Lanes template audit
+        # The shipped plugin/templates/lanes.json is the copy-and-adapt starter a
+        # reused project drops in as .claude/lanes.json. Verify it stays valid,
+        # covers all four agents, and still agrees with the hook — e.g. its
+        # retargeted backend lane can write terraform/, the reuse gap it closes.
+        run: node tools/lanes-audit.js
       - name: Design-token audit
         # Hex colors in styles.css may only appear where a custom property is
         # being *defined*; everything else must consume tokens via var(--…).

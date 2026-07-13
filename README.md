@@ -201,7 +201,7 @@ plugin/
 │   ├── enforce-lanes.js          # mirrors of .claude/hooks/*.js
 │   ├── check-footer.js
 │   └── session-start.js
-└── templates/                    # TEMPLATE-defect.md, design-system.md, browser.js
+└── templates/                    # TEMPLATE-defect.md, design-system.md, browser.js, lanes.json
 ```
 
 Three things make the bundle behave once installed to a read-only plugin cache:
@@ -216,6 +216,14 @@ Three things make the bundle behave once installed to a read-only plugin cache:
   `app/public/`) without forking the cached hook. The file is either a bare
   `{ "<agent>": { "allow": [...], "hint": "..." } }` map or a structured
   `{ "lanes": {...}, "protected": [...], "bashDeny": [{ "pattern", "flags?", "why" }] }`.
+  The built-in table mirrors *this* repo's tree (`app/`, `.github/`, `tools/`),
+  so a project whose layout differs **must** supply a `lanes.json` — otherwise
+  the lane hook denies writes to dirs the defaults don't list. The most common
+  trap is infra-as-code: `backend-developer` is the infra lane, but the default
+  table has no `terraform/`/`server/`, so those writes hard-deny until you
+  retarget. Copy `plugin/templates/lanes.json` (an Express-plus-Terraform layout
+  with `backend-developer` allowing `server/` and `terraform/`) to
+  `.claude/lanes.json` and adapt the paths.
 - **The hooks strip plugin namespacing** — an agent surfacing as
   `agentic-dev:ux-designer` resolves to the `ux-designer` lane/footer rule, so
   the process works out of the box without per-project lane edits.
@@ -236,7 +244,8 @@ deliberately, not on every commit.
 
 Then do the four per-project edits from the top of this section (CLAUDE.md
 sections, design tokens, artifact dirs, and — if your paths differ from the
-demo's — a `.claude/lanes.json`). Plugin commands are namespaced:
+demo's — a `.claude/lanes.json`, copied from `plugin/templates/lanes.json`).
+Plugin commands are namespaced:
 `/agentic-dev:feature "add X"`, `/agentic-dev:backlog list`, etc.
 
 **Smoke-test once per install**: run a trivial `/agentic-dev:feature` and
