@@ -57,7 +57,7 @@ const DEFAULT_LANES = {
 };
 
 // Subagents may not touch the enforcement layer itself.
-const DEFAULT_PROTECTED = ['.claude/settings.json', '.claude/hooks/', '.claude/lanes.json'];
+const DEFAULT_PROTECTED = ['.claude/settings.json', '.claude/hooks/', '.claude/lanes.json', '.claude/qa.json'];
 
 // Bash heuristics, subagents only. (Package managers are handled separately by
 // the dependency-policy logic, not by this static list.)

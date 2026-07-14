@@ -1,0 +1,17 @@
+{
+  "_note": "Copy to .claude/qa.json and adapt to your stack. Standardized QA gates, product-owner-owned (protected, like lanes.json). The qa-engineer runs each non-null gate under `checks` before authoring any tests, then authors tests only for gaps. null = skip. If .claude/qa.json is absent the qa-engineer falls back to the zero-dependency defaults shown here. QA RUNS declared quality tools but NEVER installs dependencies — adding a linter/tool is a dependency decision (backend-developer installer lane + dependencies.allow), raised under OPEN QUESTIONS.",
+  "_examples": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "unit": "vitest run",
+    "e2e": "playwright test"
+  },
+  "checks": {
+    "lint": "node --check",
+    "typecheck": null,
+    "unit": "node --test app/test/*.test.js",
+    "contract": "node tools/http-check.js",
+    "e2e": "node tools/browser.js check",
+    "smoke": null
+  }
+}

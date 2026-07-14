@@ -31,8 +31,8 @@ project subagents (`ux-designer`, `frontend-developer`, `backend-developer`,
   product owner retargeting `.claude/lanes.json`, never a workaround.
 - After each phase, update the pipeline state file (Phase 0) before starting
   the next phase — it is what makes the run resumable via `/feature-resume`.
-- Do not skip phases, do not do an agent's work yourself, do not commit unless
-  the product owner asks.
+- Do not skip phases beyond what the run's recorded Tier permits (Phase 0.5),
+  do not do an agent's work yourself, do not commit unless the product owner asks.
 
 ## Phase 0 — Pipeline state file
 
@@ -45,7 +45,9 @@ otherwise NNN = highest in `docs/specs/` + 1. Create
 # Pipeline state — NNN-<slug>
 
 Status: in-progress            <!-- in-progress | complete | stopped -->
-Current phase: 1 — Design
+Current phase: 0.5 — Triage
+Tier: (pending — set in Phase 0.5)   <!-- 1 Trivial | 2 Standard | 3 Complex — <rationale> -->
+Lightened/skipped phases: (set after triage)
 QA fix-loop iteration: 0/2
 Design fix-loop iteration: 0/2
 
@@ -80,11 +82,53 @@ product owner to add a `.claude/lanes.json` (copy the plugin's
 `templates/lanes.json` and adapt the paths) before continuing. Never write
 `.claude/lanes.json` yourself — it is the product owner's protected file.
 
+## Phase 0.5 — Triage & tiering
+
+Score the ask's complexity, record it, and announce it — the tier sets how much
+each later phase does (see the "Tier gate" line under each phase). **Start at
+Tier 3 and earn down** — bias toward more process, not less.
+
+Tier-3 escalators — if ANY holds, the run is **Tier 3 (Complex)**:
+- net-new UI structure, layout, or user flow;
+- a new or changed design token / visual language;
+- a multi-surface change (net-new UI *and* a new/changed backend contract);
+- a security, data-handling, auth, or persistence tradeoff.
+
+Otherwise:
+- **Tier 1 — Trivial**: confined to copy/text/labels, a single existing-token
+  value swap, or a config/static-content tweak. No new structure, no new
+  endpoint, no logic/state change.
+- **Tier 2 — Standard**: a self-contained feature reusing existing layout
+  patterns and tokens; may add a small endpoint or field; no net-new design
+  language.
+
+Rules:
+- **Tie-break: when torn between two tiers, pick the higher one.**
+- **Ambiguity is never scored away.** If you cannot confidently place the ask,
+  treat that as a Tier-3 signal or raise it under OPEN QUESTIONS (the hard-stop
+  rule still applies) — never a silent downgrade.
+- **Product-owner override wins.** If the ask carries `--tier=N`, or the owner
+  says "treat this as trivial/standard/full", use that tier and log the override
+  in the Open questions log.
+
+Set `Tier: N — <one-line rationale>` and `Lightened/skipped phases: <list>` in the
+state file, update `Current phase` to `1 — Design`, and **state the tier and what
+it lightens/skips to the product owner in your first status message** before
+running Phase 1.
+
 ## Phase 1 — Design
 
 Invoke `ux-designer` (Mode 1) with the ask and instruct it to write
 `docs/specs/NNN-<slug>.md`. Wait, then read the spec. Proceed only when
 STATUS is `ready-for-dev`.
+
+**Tier gate.** Tier 3: `ux-designer` Mode 1 (full spec). Tier 2: Mode 1 *light* —
+reuse existing layout and tokens; include a wireframe only if the layout changes.
+Tier 1: `ux-designer` **Mode 0** — a quick brief (numbered, testable acceptance
+criteria + a one-line API contract if backend is involved; no wireframe, no new
+tokens). All three still write `docs/specs/NNN-<slug>.md` and must return STATUS
+`ready-for-dev`; if a Tier-0/1 change turns out to need a new token or layout,
+that is an escalator — the designer raises it and the run moves up a tier.
 
 ## Phase 2 — Implementation (parallel)
 
@@ -96,12 +140,25 @@ This is safe because the spec pre-defines the API contract and the two agents
 own disjoint files. Exception: if the spec leaves the API contract undefined,
 run backend first and pass its contract block to the frontend afterwards.
 
+**Tier gate.** Invoke only the dev agent(s) the change actually needs (still in a
+single parallel message when both apply). A Tier 1 copy/style change is usually
+frontend-only; a Tier 1 API tweak is usually backend-only.
+
 ## Phase 3 — QA
 
 Invoke `qa-engineer` (Mode 1) with the spec path and the changed-files lists
-from both dev handoffs. Remind it to capture rendered evidence with
-`tools/browser.js` into `docs/qa/evidence/NNN-<slug>/` for browser-behavior
-criteria — the design verification in Phase 5 consumes those screenshots.
+from both dev handoffs. The qa-engineer first runs the declared gates from
+`.claude/qa.json` (or the zero-dep defaults) and reports their results, then
+authors tests for whatever the gates don't cover. Remind it to capture rendered
+evidence with `tools/browser.js` into `docs/qa/evidence/NNN-<slug>/` for
+browser-behavior criteria — the design verification in Phase 5 consumes those
+screenshots.
+
+**Tier gate.** Every tier runs the declared gates — QA is never zeroed. Tier 1:
+gates + a targeted check of the changed behavior, and **no new test-plan doc**.
+Tier 2: gates + authored tests for the gaps + a test plan. Tier 3: the above +
+full evidence capture. Pass the run's tier to the qa-engineer so it picks the
+right depth.
 
 ## Phase 4 — QA fix loop (max 2 iterations)
 
@@ -125,6 +182,12 @@ evidence directory `docs/qa/evidence/NNN-<slug>/` (if QA produced one). It
 writes `docs/design-reviews/NNN-<slug>.md` and returns APPROVED or
 CHANGES REQUIRED.
 
+**Tier gate.** Tier 3: `ux-designer` Mode 2 (full). Tier 2: Mode 2 *delta* —
+verify only the changed surface. Tier 1: **skip design verification entirely
+unless the change touched layout or tokens**; if it did, run Mode 2 delta. When
+skipped, record it in the state file's `Lightened/skipped phases` and go straight
+to Phase 7.
+
 ## Phase 6 — Design fix loop (max 2 iterations)
 
 If CHANGES REQUIRED — batch findings by owning area exactly as in Phase 4
@@ -132,6 +195,9 @@ If CHANGES REQUIRED — batch findings by owning area exactly as in Phase 4
 `qa-engineer` (Mode 2) for a regression run, then `ux-designer` (Mode 2)
 re-review. If still not APPROVED after 2 iterations, stop and report the open
 findings to the product owner.
+
+**Tier gate.** This loop only runs when Phase 5 ran and returned CHANGES
+REQUIRED. If Phase 5 was skipped (Tier 1, no layout/token change), skip Phase 6.
 
 ## Phase 7 — Documentation
 
@@ -142,6 +208,10 @@ both dev handoffs, and the design-review verdict. It creates or idempotently
 updates the root `README.md` and the project docs under `docs/project/`
 (overview + a per-feature note) to match what actually shipped.
 
+**Tier gate.** Tier 3/2: `technical-writer` Mode 1 + Mode 2 (README + overview +
+a per-feature note). Tier 1: **overview/README touch only** — update just the
+sections the change affects; skip the per-feature note.
+
 The writer's lane covers `README.md` and `docs/project/` only — do not author
 these docs yourself. Treat its handoff footer like any other agent's: if its
 OPEN QUESTIONS is anything other than "none" (e.g. a missing `.env.example`, a
@@ -151,8 +221,10 @@ answers.
 
 ## Phase 8 — Report to the product owner
 
-Present a summary table: phase · agent · artifacts written · status. State
-the final QA verdict, design verdict, and the docs updated in Phase 7, list any
-open items, and ask the product owner for acceptance. On acceptance, set the
+Present a summary table: phase · agent · artifacts written · status. Lead with
+the run's **Tier and the phases it lightened or skipped** (so the owner sees what
+was traded for speed), then state the QA gate results and final QA verdict, the
+design verdict (or that verification was skipped and why), and the docs updated in
+Phase 7. List any open items and ask the product owner for acceptance. On acceptance, set the
 state file's `Status: complete` (and the backlog row to `done`, if one exists).
 Do not commit unless they ask.
