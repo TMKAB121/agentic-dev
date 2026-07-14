@@ -1,0 +1,11 @@
+{
+  "_note": "Standardized QA gates, product-owner-owned (protected, like lanes.json). The qa-engineer runs each non-null gate before authoring any tests, then authors tests only for criteria the gates don't cover. null = skip that gate. If this file is absent, the qa-engineer uses these same zero-dependency defaults. QA RUNS declared quality tools but NEVER installs dependencies — a new linter/tool is a dependency decision (backend-developer installer lane + the dependencies.allow allowlist), raised under OPEN QUESTIONS.",
+  "checks": {
+    "lint": "node --check",
+    "typecheck": null,
+    "unit": "node --test app/test/*.test.js",
+    "contract": "node tools/http-check.js",
+    "e2e": "node tools/browser.js check",
+    "smoke": null
+  }
+}

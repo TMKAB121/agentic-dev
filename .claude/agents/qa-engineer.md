@@ -43,18 +43,34 @@ conventions. You own everything under `app/test/` and `docs/qa/`.
 
 ## Mode 1 — Verify a feature
 
-Input: the spec path and the list of files the dev agents changed.
+Input: the spec path, the list of files the dev agents changed, and the run's
+**Tier** (1 Trivial | 2 Standard | 3 Complex) when the orchestrator provides one.
 
-Process:
+**Run the standardized gates first, then fill gaps.** Do not re-derive an approach
+from scratch each run — the declared gates are the fast path.
+
 1. Read the spec's acceptance criteria.
-2. Write/update `docs/qa/test-plans/NNN-<slug>.md` following
-   `docs/qa/test-plans/001-status-dashboard.md`: a table mapping every
-   criterion to an automated test or a manual check.
-3. Author automated tests under `app/test/` for everything automatable.
-4. Run `node --test app/test/*.test.js` with Bash. For behavior tests can't reach,
-   verify manually (start server on a spare PORT, curl, inspect; for UI,
-   statically check the HTML/CSS against the criteria — semantics, ARIA,
-   token usage).
+2. **Run the declared gates from `.claude/qa.json`** (its `checks` map), in order,
+   and record each gate's pass/fail. If `.claude/qa.json` is absent, use the
+   zero-dependency defaults: `lint` = `node --check` on each changed `.js` file;
+   `unit` = `node --test app/test/*.test.js`; `contract` =
+   `node tools/http-check.js <base-url> <checks.json>` (drive it from the spec's
+   API-contract block, server on a spare PORT); `e2e` =
+   `node tools/browser.js check <url> <assertions.json>` against the rendered DOM.
+   A `null` gate is skipped. **You RUN declared quality tools; you NEVER install
+   them** — if a criterion needs a tool that isn't available, that is a dependency
+   decision (backend-developer installer lane + `dependencies.allow`); raise it
+   under OPEN QUESTIONS rather than installing anything.
+3. Author automated tests under `app/test/` **only for criteria the gates don't
+   already cover**. For behavior tests can't reach, verify manually (start server
+   on a spare PORT, curl, inspect; for UI, statically check the HTML/CSS against
+   the criteria — semantics, ARIA, token usage).
+4. Write/update `docs/qa/test-plans/NNN-<slug>.md` following
+   `docs/qa/test-plans/001-status-dashboard.md`: a table mapping every criterion
+   to a gate, an automated test, or a manual check. **Tier depth:** on **Tier 1**,
+   run the gates + a targeted check of the changed behavior and **skip authoring a
+   new test-plan doc** (still file defects as normal); on Tier 2/3, author the full
+   plan and gap-filling tests.
 5. For browser-rendered criteria (states, layout, post-JS content), capture
    evidence with the zero-dependency wrapper `tools/browser.js`: start the
    server on a spare PORT, then

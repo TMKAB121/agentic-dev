@@ -69,14 +69,22 @@ Enforcement note).
 - Run the tests: `node --test app/test/*.test.js`
 - Capture rendered evidence (QA): `node tools/browser.js dom <url>` (post-JS
   DOM) and `node tools/browser.js shot <url> <out.png> [WxH]` — zero-dep
-  headless-Chromium wrapper; exits 2 with a clear message when no browser is
-  installed (fall back to static checks).
+  headless-Chromium wrapper (discovers Chrome/Chromium on PATH, via `CHROME_BIN`,
+  or in the standard macOS app bundle); exits 2 with a clear message when no
+  browser is installed (fall back to static checks).
+- Assert against the rendered DOM (QA): `node tools/browser.js check <url>
+  <assertions.json>` — evaluates `{contains}` / `{matches}` / `{absent}`
+  assertions against the post-JS DOM; non-zero exit on any failure.
+- Check the API contract (QA): `node tools/http-check.js <base-url> <checks.json>`
+  — zero-dep `node:http` runner asserting status + JSON-subset shape per endpoint;
+  non-zero exit on any failure.
 
 ## Workflow rules
 
 1. Features flow: UX spec → frontend + backend (parallel) → QA → QA fix loop →
    UX design verification → design fix loop → documentation → product-owner
-   acceptance.
+   acceptance. Each phase's **depth scales with the run's complexity Tier**
+   (rule 8) — the flow is constant, but how much each phase does is not.
 2. No agent leaves its lane: UX never writes app code; devs never edit
    `docs/specs/` or `docs/design-system.md`; QA never fixes product code;
    devs never write tests; the technical-writer writes only `README.md` and
@@ -99,6 +107,27 @@ Enforcement note).
    restarting.
 7. Agents are pinned to `model: sonnet` in their frontmatter so runs don't
    inherit a pricier session model. Change deliberately, not per-run.
+8. **Complexity tiering.** At `/feature` Phase 0.5 the orchestrator scores the
+   ask into a Tier — **1 Trivial | 2 Standard | 3 Complex** — recorded in the
+   pipeline state file and announced to the product owner. The tier scales each
+   phase's depth (per the "Tier gate" lines in `/feature`): Tier 1 gets a UX quick
+   brief, gates-only QA, no design verification unless layout/tokens changed, and
+   an overview/README-only doc touch; Tier 2 runs everything in a lighter "delta"
+   mode; Tier 3 is the full pipeline. Guardrails that make this safe and are not
+   negotiable: **start at Tier 3 and earn down** (bias toward more process);
+   **on a tie, pick the higher tier**; **OPEN QUESTIONS stays tier-independent**
+   (ambiguity always escalates, never gets scored away); and **QA is never
+   zeroed** — every tier runs the declared gates. The product owner may override
+   the tier (`/feature --tier=N` or in words); the override is logged.
+9. **Standardized QA gates.** Quality gates are declared in `.claude/qa.json`
+   (product-owner-owned, protected) as a `checks` map — `lint`, `typecheck`,
+   `unit`, `contract`, `e2e`, `smoke` (`null` = skip). The qa-engineer runs the
+   declared gates first, then authors tests only for the gaps. When the file is
+   absent it falls back to zero-dep defaults (`node --check`, `node --test`,
+   `tools/http-check.js`, `tools/browser.js check`). **QA runs declared quality
+   tools but never installs dependencies** — adding a linter/tool is a dependency
+   decision (backend installer lane + `dependencies.allow`), raised under OPEN
+   QUESTIONS.
 
 ## Artifact conventions (the handoff contract)
 
@@ -122,8 +151,14 @@ explicit file paths.
   ux-designer during design verification.
 - Pipeline state: `docs/pipeline/NNN-<slug>.md` — created at `/feature`
   Phase 0, updated after every phase (`Status: in-progress | complete |
-  stopped`, `Current phase`, loop counters, phase log). Read by
-  `/feature-resume` and surfaced at session start by a hook.
+  stopped`, `Current phase`, `Tier` and `Lightened/skipped phases` (set at
+  Phase 0.5), loop counters, phase log). Read by `/feature-resume` (which honors
+  the recorded Tier rather than re-triaging) and surfaced at session start by a
+  hook.
+- QA gate config: `.claude/qa.json` — the product-owner-owned `checks` map the
+  qa-engineer runs before authoring tests (protected; see the Enforcement note).
+  Absent ⇒ zero-dep defaults. A copyable template ships at
+  `plugin/templates/qa.json`.
 - Backlog / spec-number registry: `docs/backlog.md`, managed via `/backlog`.
   When features run concurrently (e.g. parallel worktrees), spec NNNs are
   allocated here, not by scanning `docs/specs/`.
@@ -143,8 +178,10 @@ Lane boundaries are mechanically enforced, not just prompted:
   (e.g. the ux-designer has no Bash).
 - `.claude/hooks/enforce-lanes.js` (a PreToolUse hook registered in
   `.claude/settings.json`) blocks `Write`/`Edit` outside each agent's lane and
-  blocks subagents from touching the enforcement layer itself. Unknown agents
-  fail closed — register new agents in its lane table.
+  blocks subagents from touching the enforcement layer itself — the protected set
+  is `.claude/settings.json`, `.claude/hooks/`, `.claude/lanes.json`, and
+  `.claude/qa.json` (all product-owner-only). Unknown agents fail closed —
+  register new agents in its lane table.
 - The same hook enforces the **Dependency policy**: it reads
   `dependencies.allow` / `dependencies.installers` from `.claude/lanes.json`
   and, per package-manager Bash command and per `package.json` write, permits

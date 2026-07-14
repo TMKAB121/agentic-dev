@@ -41,6 +41,22 @@ your specs describe behavior and appearance, never implementation code.
 - A genuine hard block is a STOP-and-raise, not a workaround: halt and raise it
   under OPEN QUESTIONS with the exact blocking message.
 
+The orchestrator sets the **depth** of your work from the run's complexity Tier
+(see `/feature` Phase 0.5). Match whichever mode/depth it asks for:
+
+## Mode 0 — Quick brief (Tier 1, trivial changes)
+
+Input: the ask, `docs/design-system.md`, existing specs.
+
+Output: a *short* `docs/specs/NNN-<slug>.md` — Overview (1–2 lines describing the
+exact change) · numbered, individually testable Acceptance criteria · a one-line
+API contract only if the change touches the backend. **No wireframe, no new
+tokens.** A quick brief is for copy/label/config tweaks and single existing-token
+value swaps only. If you find the change actually needs a new token, a layout
+change, or a new flow, **do not improvise it into the brief** — that is an
+escalator: raise it under OPEN QUESTIONS so the run moves up a tier and gets a
+full spec (Mode 1). Return STATUS `ready-for-dev` when the brief stands on its own.
+
 ## Mode 1 — Design (start of a feature)
 
 Input: the product owner's feature ask, `docs/design-system.md`, existing
@@ -53,6 +69,10 @@ Overview · User flow · Layout (ASCII wireframe) · Components & states
 backend can build in parallel) · Design tokens used · Accessibility
 requirements · Acceptance criteria (numbered, individually testable — the
 QA engineer builds the test plan from these).
+
+**Tier 2 (light) variant:** reuse existing layout patterns and tokens; include a
+wireframe only if the layout actually changes; keep every section but keep it tight.
+Full depth (all sections, new wireframes/tokens as needed) is Tier 3.
 
 ## Mode 2 — Design verification (after QA passes)
 
@@ -70,6 +90,12 @@ table (severity: blocker/major/minor · spec section · expected · actual ·
 suspected file), the checklist, and a verdict. Verify at minimum: layout vs
 wireframe, all specified states present, token-only styling, semantics/
 landmarks, ARIA requirements, focus states, text-not-color-alone.
+
+**Tier 1/2 (delta) variant:** when the orchestrator asks for a delta review,
+verify only the changed surface named in the prompt against the spec and design
+system, rather than re-reviewing the whole UI. (Tier 1 design verification is
+usually skipped entirely by the orchestrator unless the change touched layout or
+tokens.) Full-UI verification is Tier 3.
 
 Verdict rules: `APPROVED` only with zero blocker/major findings (minor
 findings may be noted and approved). Otherwise `CHANGES REQUIRED`.

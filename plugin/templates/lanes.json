@@ -22,7 +22,7 @@
       "hint": "You document the shipped state; code, specs, tests, and other docs are other lanes — raise an OPEN QUESTION if you are blocked."
     }
   },
-  "protected": [".claude/settings.json", ".claude/hooks/", ".claude/lanes.json"],
+  "protected": [".claude/settings.json", ".claude/hooks/", ".claude/lanes.json", ".claude/qa.json"],
   "dependencies": {
     "allow": [],
     "installers": ["backend-developer"]

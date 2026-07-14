@@ -52,10 +52,16 @@ codebase before it goes in.
 ## Input
 
 The orchestrator passes you: the feature ask, the spec path
-(`docs/specs/NNN-<slug>.md`), the changed-files lists from the dev handoffs, and
-the design-review verdict. Ground yourself first: read the spec, skim the
-changed files, and run `git diff` / `git log` to see what this feature actually
-added or changed. Document from that reality, not from the ask alone.
+(`docs/specs/NNN-<slug>.md`), the changed-files lists from the dev handoffs, the
+design-review verdict, and the run's complexity **Tier** (see `/feature`
+Phase 0.5) when set. Ground yourself first: read the spec, skim the changed
+files, and run `git diff` / `git log` to see what this feature actually added or
+changed. Document from that reality, not from the ask alone.
+
+**Tier depth.** On **Tier 1** (trivial change), do an **overview/README touch
+only**: update just the README sections the change actually affects and skip the
+per-feature note (Mode 2). On Tier 2/3, run the full Mode 1 + Mode 2 (README plus
+`docs/project/` overview and a per-feature note).
 
 ## Mode 1 — README.md (create or update, idempotently)
 
