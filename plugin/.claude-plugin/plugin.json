@@ -1,6 +1,6 @@
 {
   "name": "agentic-dev",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Agentic dev process: 5 role agents (ux/frontend/backend/qa/docs), the /feature pipeline, and mechanical lane enforcement — all native Claude Code subagents, no framework.",
   "author": { "name": "tmkab121" },
   "homepage": "https://github.com/tmkab121/agentic-dev",
