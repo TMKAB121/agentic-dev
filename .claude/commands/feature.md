@@ -9,6 +9,17 @@ project subagents (`ux-designer`, `frontend-developer`, `backend-developer`,
 `qa-engineer`, `technical-writer`). Rules that apply throughout:
 
 - Pass explicit file paths in every agent prompt — subagents share no context.
+- **Run every pipeline agent synchronously — never in the background.** Each
+  phase consumes the artifact the previous phase wrote, so the pipeline is
+  strictly sequential. Every Agent tool call here MUST pass
+  `run_in_background: false`; wait for the agent to return, then read its
+  handoff footer before doing anything else. The Agent tool defaults to
+  *background* execution — a backgrounded pipeline agent makes the run look
+  "stalled" at the handoff, because you go to read a spec/defect/report the
+  agent hasn't written yet and there is nothing there. When a phase runs two
+  agents in parallel (Phase 2, the fix loops), still put both in one message
+  and still pass `run_in_background: false` on each — "parallel" means one
+  message with two synchronous calls, not backgrounded calls.
 - **OPEN QUESTIONS is a hard stop (all five agents, every phase).** After each
   agent returns, read its handoff footer. If its OPEN QUESTIONS is anything
   other than "none", STOP the pipeline immediately — do not start the next
