@@ -158,6 +158,24 @@ function stripVersion(token) {
   return at === -1 ? token : token.slice(0, at);
 }
 
+// Deny messages shared by the install and npx paths.
+function zeroDepDeny(agent) {
+  return {
+    deny:
+      `Blocked for ${agent}: package managers are disabled — this project has no ` +
+      'approved dependencies (zero-dependency by default). Raise the package you need ' +
+      'under OPEN QUESTIONS so the product owner can add it to .claude/lanes.json ' +
+      'dependencies.allow. Do not retry.',
+  };
+}
+function installerLaneDeny(agent, deps) {
+  return {
+    deny:
+      `Blocked for ${agent}: installing dependencies is the ${deps.installers.join('/')} ` +
+      "lane's responsibility, not yours. Raise it under OPEN QUESTIONS. Do not retry.",
+  };
+}
+
 // Decide whether a Bash command that touches a package manager is allowed under
 // the project's dependency policy. Returns:
 //   null              -> no package manager involved; caller proceeds normally
@@ -178,25 +196,16 @@ function resolveDependencyDecision(cmd, agent, deps) {
     if (!PACKAGE_MANAGERS.has(mgr)) continue;
     sawPackageManager = true;
 
-    if (!active) {
-      return {
-        deny:
-          `Blocked for ${agent}: package managers are disabled — this project has no ` +
-          'approved dependencies (zero-dependency by default). Raise the package you need ' +
-          'under OPEN QUESTIONS so the product owner can add it to .claude/lanes.json ' +
-          'dependencies.allow. Do not retry.',
-      };
-    }
-    if (!isInstaller(agent, deps)) {
-      return {
-        deny:
-          `Blocked for ${agent}: installing dependencies is the ${deps.installers.join('/')} ` +
-          "lane's responsibility, not yours. Raise it under OPEN QUESTIONS. Do not retry.",
-      };
-    }
-
-    // npx runs (and may fetch) a package — gate its target like an install.
+    // Classify the command FIRST — only *installs* (and `npx`, which fetches/
+    // runs a package) are gated by the active/installer/allowlist policy.
+    // Non-install runs (`npm run`, `npm test`, `npm ls`, `pnpm exec`, …) are
+    // plain script execution and are allowed for ANY lane, regardless of
+    // whether dependencies are active. Gating them here was the bug that stopped
+    // frontend/QA lanes from building or testing frontend-only projects.
     if (mgr === 'npx') {
+      // npx runs (and may fetch) a package — gate it like an install.
+      if (!active) return zeroDepDeny(agent);
+      if (!isInstaller(agent, deps)) return installerLaneDeny(agent, deps);
       const target = tokens.slice(1).find((t) => !t.startsWith('-'));
       if (target && !deps.allow.includes(stripVersion(target))) {
         return {
@@ -213,7 +222,11 @@ function resolveDependencyDecision(cmd, agent, deps) {
     const installSubs = INSTALL_SUBCMDS[mgr] || new Set();
     // Bare `yarn` (no subcommand) installs from the manifest.
     const isInstall = sub ? installSubs.has(sub) : mgr === 'yarn';
-    if (!isInstall) continue; // `npm run`, `npm test`, `npm ls`, … — allowed when active.
+    if (!isInstall) continue; // `npm run`, `npm test`, `npm ls`, … — allowed for any lane.
+
+    // From here down the command installs packages — apply the full policy.
+    if (!active) return zeroDepDeny(agent);
+    if (!isInstaller(agent, deps)) return installerLaneDeny(agent, deps);
 
     const rest = tokens.slice(2);
     if (rest.includes('-r') || rest.includes('--requirement') || rest.includes('-e')) {
@@ -314,7 +327,7 @@ function run(raw) {
     if (!agent) return; // orchestrator Bash is not policed here
     const cmd = String(args.command || '');
     const depDecision = resolveDependencyDecision(cmd, agent, deps);
-    if (depDecision && depDecision.deny) deny(depDecision.reason);
+    if (depDecision && depDecision.deny) deny(depDecision.deny);
     // A permitted package-manager command still falls through to the other
     // Bash heuristics below (e.g. it must not also `git push`).
     for (const { re, why } of cfg.bashDeny) {
